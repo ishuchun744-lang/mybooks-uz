@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MyBooksUz — Onlayn Kitob Do'koni</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #FAF8F5; color: #1C2220; }
+    h1, h2, h3, .font-serif { font-family: 'Merriweather', serif; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-30 bg-[#064E3B] text-white shadow-md">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="showSection('shop')">
+        <div class="w-10 h-10 rounded-xl bg-[#D4AF37] text-[#064E3B] flex items-center justify-center font-bold text-xl shadow">
+          📚
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-wide text-white">MyBooksUz</h1>
+          <p class="text-[11px] text-emerald-200">Onlayn kitob do'koni</p>
+        </div>
+      </div>
+
+      <div class="flex-1 max-w-md hidden sm:block">
+        <input
+          id="searchInput"
+          type="text"
+          oninput="renderBooks()"
+          placeholder="Kitob yoki muallifni qidiring..."
+          class="w-full px-4 py-2 rounded-xl text-sm text-neutral-900 bg-white/95 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
+        />
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="openCartModal()" class="relative px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold flex items-center gap-2 transition">
+          <span>🛒 Savat</span>
+          <span id="cartCount" class="px-2 py-0.5 rounded-full bg-[#D4AF37] text-[#064E3B] font-bold text-xs">0</span>
+        </button>
+        <button onclick="toggleAdminAccess()" class="px-3 py-2 rounded-xl bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] text-xs font-semibold transition">
+          ⚙️ Admin
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- DO'KON QISMI -->
+  <main id="shopSection" class="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
+    <div class="bg-gradient-to-r from-[#064E3B] to-[#043927] text-white rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-lg">
+      <div class="space-y-2 text-center sm:text-left">
+        <span class="inline-block px-3 py-1 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] text-xs font-bold uppercase">O'zbekiston bo'ylab yetkazib berish</span>
+        <h2 class="text-2xl sm:text-3xl font-bold">Eng sara kitoblar makoni</h2>
+        <p class="text-xs sm:text-sm text-emerald-100 max-w-lg">Jahon va o'zbek adabiyoti, biznes, psixologiya hamda shaxsiy rivojlanishga oid eng mashhur asarlar.</p>
+      </div>
+      <div class="text-5xl sm:text-6xl">📖</div>
+    </div>
+
+    <div id="categoryTabs" class="flex items-center gap-2 overflow-x-auto pb-2"></div>
+    <div id="booksGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"></div>
+  </main>
+
+  <!-- ADMIN PANEL QISMI -->
+  <section id="adminSection" class="hidden flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-8">
+    <div class="flex items-center justify-between bg-white p-4 rounded-2xl border shadow-sm">
+      <div>
+        <h2 class="text-lg font-bold text-[#064E3B]">Boshqaruv Paneli (Supabase Live)</h2>
+        <p class="text-xs text-neutral-500">Yangi kitob qo'shish va buyurtmalarni boshqarish</p>
+      </div>
+      <button onclick="showSection('shop')" class="px-4 py-2 rounded-xl bg-neutral-200 hover:bg-neutral-300 text-xs font-bold">
+        ← Do'konga qaytish
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="bg-white p-5 rounded-2xl border shadow-sm space-y-4 h-fit">
+        <h3 class="font-bold text-sm text-[#064E3B] border-b pb-2">➕ Yangi kitob qo'shish</h3>
+        <form id="addBookForm" onsubmit="handleAddBook(event)" class="space-y-3 text-xs">
+          <div>
+            <label class="font-semibold block mb-1">Kitob nomi *</label>
+            <input id="bookTitle" required class="w-full px-3 py-2 border rounded-xl" placeholder="Masalan: Ikki eshik orasi" />
+          </div>
+          <div>
+            <label class="font-semibold block mb-1">Muallif *</label>
+            <input id="bookAuthor" required class="w-full px-3 py-2 border rounded-xl" placeholder="Masalan: O'tkir Hoshimov" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="font-semibold block mb-1">Narxi (so'm) *</label>
+              <input id="bookPrice" type="number" required class="w-full px-3 py-2 border rounded-xl" placeholder="55000" />
+            </div>
+            <div>
+              <label class="font-semibold block mb-1">Kategoriya *</label>
+              <select id="bookCategory" class="w-full px-3 py-2 border rounded-xl bg-white">
+                <option value="O'zbek adabiyoti">O'zbek adabiyoti</option>
+                <option value="Jahon adabiyoti">Jahon adabiyoti</option>
+                <option value="Psixologiya">Psixologiya</option>
+                <option value="Biznes va moliya">Biznes va moliya</option>
+                <option value="Bolalar adabiyoti">Bolalar adabiyoti</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="p-3 border-2 border-dashed border-emerald-700/30 rounded-xl bg-emerald-50/40 space-y-2">
+            <label class="font-semibold block text-[#064E3B]">📁 Kitob muqovasini yuklash *</label>
+            <input
+              id="bookImageFile"
+              type="file"
+              accept="image/*"
+              onchange="previewSelectedImage(event)"
+              class="w-full text-[11px] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#064E3B] file:text-white cursor-pointer"
+            />
+            <div id="imagePreviewWrapper" class="hidden pt-2">
+              <img id="imagePreview" src="" alt="Preview" class="h-32 w-24 object-cover rounded-lg border shadow-sm mx-auto" />
+            </div>
+          </div>
+
+          <div>
+            <label class="font-semibold block mb-1">Tavsif</label>
+            <textarea id="bookDesc" rows="2" class="w-full px-3 py-2 border rounded-xl" placeholder="Kitob haqida qisqacha..."></textarea>
+          </div>
+          <button id="saveBookBtn" type="submit" class="w-full py-2.5 bg-[#064E3B] hover:bg-[#043927] text-white font-bold rounded-xl transition">
+            Bazaga saqlash
+          </button>
+        </form>
+      </div>
+
+      <div class="lg:col-span-2 bg-white p-5 rounded-2xl border shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b pb-2">
+          <h3 class="font-bold text-sm text-[#064E3B]">📦 Kelib tushgan buyurtmalar</h3>
+          <button onclick="loadOrders()" class="text-xs text-emerald-700 font-semibold hover:underline">🔄 Yangilash</button>
+        </div>
+        <div id="ordersList" class="space-y-3 max-h-[500px] overflow-y-auto text-xs"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SAVAT VA TO'LOV MODALI -->
+  <div id="cartModal" class="fixed inset-0 z-50 hidden bg-black/60 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-bold text-base text-[#064E3B]">🛒 Savatchangiz va To'lov</h3>
+        <button onclick="closeCartModal()" class="text-neutral-400 hover:text-neutral-700 text-lg font-bold">✕</button>
+      </div>
+      
+      <div id="cartItemsContainer" class="space-y-3 text-xs"></div>
+
+      <div class="border-t pt-3 flex items-center justify-between font-bold text-sm">
+        <span>Jami to'lov:</span>
+        <span id="cartTotalText" class="text-[#064E3B] text-base">0 so'm</span>
+      </div>
+
+      <!-- KARTA RAQAMI (O'zingiznikiga o'zgartirishingiz mumkin) -->
+      <div class="p-3.5 rounded-xl bg-[#009EE0]/10 border border-[#009EE0]/30 text-xs space-y-1.5">
+        <p class="font-bold text-[#0070A3]">💙 Click yoki karta orqali to'lash:</p>
+        <p class="text-neutral-700">Karta raqam (Humo/Uzcard): <strong class="select-all bg-white px-2 py-0.5 rounded border">9860 1234 5678 9012</strong></p>
+        <p class="text-neutral-700">Click hamyon / Tel: <strong>+998 90 123 45 67</strong></p>
+        <p class="text-[11px] text-neutral-500">Ilovangiz (Click, Payme) orqali to'lovni qilib, chekni pastga yuklang.</p>
+      </div>
+
+      <form id="checkoutForm" onsubmit="submitOrder(event)" class="space-y-3 pt-2 border-t text-xs">
+        <h4 class="font-bold text-neutral-700">Yetkazib berish va chekni yuklash</h4>
+        <input id="custName" required placeholder="Ism va familiyangiz *" class="w-full px-3 py-2.5 border rounded-xl" />
+        <input id="custPhone" required placeholder="Telefon raqamingiz (+998...) *" class="w-full px-3 py-2.5 border rounded-xl" />
+        <input id="custAddress" required placeholder="Viloyat, tuman, ko'cha va uy manzili *" class="w-full px-3 py-2.5 border rounded-xl" />
+        
+        <div>
+          <label class="font-semibold block mb-1 text-neutral-700">📁 To'lov cheki skrinshoti *</label>
+          <input
+            id="receiptFile"
+            type="file"
+            accept="image/*"
+            required
+            class="w-full text-[11px] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#064E3B] file:text-white cursor-pointer border rounded-xl p-1"
+          />
+        </div>
+
+        <button id="submitOrderBtn" type="submit" class="w-full py-3 bg-[#064E3B] hover:bg-[#043927] text-white font-bold rounded-xl uppercase tracking-wider transition">
+          Buyurtmani tasdiqlash
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://csyooiwvszsoztjvaait.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_HvorUuw7ILd4nPZnZrzm6w_0DBP8qv0";
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const DEFAULT_BOOKS = [
+      { id: 1, title: "O'tkan kunlar", author: "Abdulla Qodiriy", price: 45000, category: "O'zbek adabiyoti", image_url: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500", description: "O'zbek romanchiligining asoschisi Abdulla Qodiriyning shoh asari." },
+      { id: 2, title: "Atom odatlar", author: "Jeyms Klir", price: 65000, category: "Psixologiya", image_url: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=500", description: "Kichik o'zgarishlar qanday qilib katta natijalarga olib kelishi haqida." },
+      { id: 3, title: "Boy ota, kambag'al ota", author: "Robert Kiyosaki", price: 55000, category: "Biznes va moliya", image_url: "https://images.unsplash.com/photo-1554415707-c18c60fe62a0?w=500", description: "Moliyaviy savodxonlik va pulni boshqarish bo'yicha eng mashhur qo'llanma." },
+      { id: 4, title: "Alkimyogar", author: "Paulo Koelo", price: 40000, category: "Jahon adabiyoti", image_url: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500", description: "O'z taqdiri va orzularini izlab yo'lga chiqqan cho'pon yigit qissasi." }
+    ];
+
+    const CATEGORIES = ["Barchasi", "O'zbek adabiyoti", "Jahon adabiyoti", "Psixologiya", "Biznes va moliya", "Bolalar adabiyoti"];
+    let allBooks = [...DEFAULT_BOOKS];
+    let selectedCategory = "Barchasi";
+    let cart = JSON.parse(localStorage.getItem("mybooksuz_cart") || "[]");
+    let isAdmin = false;
+
+    window.addEventListener("DOMContentLoaded", () => {
+      renderCategories();
+      renderBooks();
+      updateCartBadge();
+      fetchBooks();
+    });
+
+    async function fetchBooks() {
+      try {
+        const { data, error } = await supabaseClient.from("books").select("*").order("id", { ascending: false });
+        if (!error && data && data.length > 0) {
+          allBooks = data;
+          renderBooks();
+        }
+      } catch (err) {
+        console.warn("Standart kitoblar ko'rsatilmoqda.");
+      }
+    }
+
+    function renderCategories() {
+      document.getElementById("categoryTabs").innerHTML = CATEGORIES.map(cat => `
+        <button onclick="selectCategory('${cat.replace(/'/g, "\\'")}')" class="px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition ${selectedCategory === cat ? "bg-[#064E3B] text-white shadow" : "bg-white text-neutral-700 border hover:bg-emerald-50"}">
+          ${cat}
+        </button>
+      `).join("");
+    }
+
+    function selectCategory(cat) {
+      selectedCategory = cat;
+      renderCategories();
+      renderBooks();
+    }
+
+    function renderBooks() {
+      const grid = document.getElementById("booksGrid");
+      const query = (document.getElementById("searchInput").value || "").toLowerCase().trim();
+      const filtered = allBooks.filter(b => {
+        const matchesCat = selectedCategory === "Barchasi" || b.category === selectedCategory;
+        const matchesSearch = b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query);
+        return matchesCat && matchesSearch;
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center py-12 text-neutral-400 text-sm">Kitob topilmadi.</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(book => `
+        <div class="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
+          <div>
+            <div class="h-56 bg-neutral-100 relative overflow-hidden">
+              <img src="${book.image_url || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500'}" alt="${book.title}" class="w-full h-full object-cover" />
+              <span class="absolute top-2 left-2 px-2.5 py-1 rounded-lg bg-black/60 text-white text-[10px] font-semibold">${book.category}</span>
+              ${isAdmin ? `<button onclick="deleteBook(${book.id})" class="absolute top-2 right-2 bg-red-600 text-white text-[10px] px-2 py-1 rounded-lg font-bold shadow">O'chirish</button>` : ""}
+            </div>
+            <div class="p-4 space-y-1">
+              <h3 class="font-bold text-sm text-neutral-900 line-clamp-1">${book.title}</h3>
+              <p class="text-xs text-neutral-500">${book.author}</p>
+              <p class="text-[11px] text-neutral-600 line-clamp-2 pt-1">${book.description || ""}</p>
+            </div>
+          </div>
+          <div class="p-4 pt-0 flex items-center justify-between">
+            <span class="font-bold text-sm text-[#064E3B]">${Number(book.price).toLocaleString()} so'm</span>
+            <button onclick="addToCart(${book.id})" class="px-3 py-2 rounded-xl bg-[#064E3B] hover:bg-[#043927] text-white text-xs font-semibold transition">+ Savatga</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function previewSelectedImage(event) {
+      const file = event.target.files[0];
+      const wrapper = document.getElementById("imagePreviewWrapper");
+      const img = document.getElementById("imagePreview");
+      if (file) {
+        img.src = URL.createObjectURL(file);
+        wrapper.classList.remove("hidden");
+      } else {
+        wrapper.classList.add("hidden");
+      }
+    }
+
+    async function handleAddBook(e) {
+      e.preventDefault();
+      const saveBtn = document.getElementById("saveBookBtn");
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saqlanmoqda...";
+
+      const title = document.getElementById("bookTitle").value.trim();
+      const author = document.getElementById("bookAuthor").value.trim();
+      const price = Number(document.getElementById("bookPrice").value);
+      const category = document.getElementById("bookCategory").value;
+      const description = document.getElementById("bookDesc").value.trim();
+      const fileInput = document.getElementById("bookImageFile");
+      let image_url = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500";
+
+      if (fileInput.files && fileInput.files[0]) {
+        const file = fileInput.files[0];
+        const ext = file.name.split(".").pop();
+        const fileName = `book_${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabaseClient.storage.from("covers").upload(fileName, file);
+
+        if (!uploadError) {
+          const { data: urlData } = supabaseClient.storage.from("covers").getPublicUrl(fileName);
+          image_url = urlData.publicUrl;
+        }
+      }
+
+      const { error } = await supabaseClient.from("books").insert([{ title, author, price, category, image_url, description }]);
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Bazaga saqlash";
+
+      if (error) {
+        alert("Xatolik: " + error.message);
+        return;
+      }
+
+      alert("✅ Yangi kitob muvaffaqiyatli qo'shildi!");
+      document.getElementById("addBookForm").reset();
+      document.getElementById("imagePreviewWrapper").classList.add("hidden");
+      fetchBooks();
+    }
+
+    async function deleteBook(id) {
+      if (!confirm("Bu kitobni o'chirmoqchimisiz?")) return;
+      await supabaseClient.from("books").delete().eq("id", id);
+      allBooks = allBooks.filter(b => b.id !== id);
+      renderBooks();
+      fetchBooks();
+    }
+
+    function addToCart(bookId) {
+      const book = allBooks.find(b => b.id === bookId);
+      if (!book) return;
+      const existing = cart.find(item => item.id === bookId);
+      if (existing) existing.qty += 1;
+      else cart.push({ id: book.id, title: book.title, price: Number(book.price), qty: 1 });
+      saveCart();
+    }
+
+    function changeQty(bookId, delta) {
+      const item = cart.find(i => i.id === bookId);
+      if (!item) return;
+      item.qty += delta;
+      if (item.qty <= 0) cart = cart.filter(i => i.id !== bookId);
+      saveCart();
+      renderCartItems();
+    }
+
+    function saveCart() {
+      localStorage.setItem("mybooksuz_cart", JSON.stringify(cart));
+      updateCartBadge();
+    }
+
+    function updateCartBadge() {
+      document.getElementById("cartCount").textContent = cart.reduce((s, i) => s + i.qty, 0);
+    }
+
+    function openCartModal() { renderCartItems(); document.getElementById("cartModal").classList.remove("hidden"); }
+    function closeCartModal() { document.getElementById("cartModal").classList.add("hidden"); }
+
+    function renderCartItems() {
+      const container = document.getElementById("cartItemsContainer");
+      const totalEl = document.getElementById("cartTotalText");
+      if (cart.length === 0) {
+        container.innerHTML = `<p class="text-neutral-400 text-center py-4">Savatchangiz bo'sh.</p>`;
+        totalEl.textContent = "0 so'm";
+        return;
+      }
+      let total = 0;
+      container.innerHTML = cart.map(item => {
+        total += item.price * item.qty;
+        return `
+          <div class="flex items-center justify-between bg-neutral-50 p-3 rounded-xl border">
+            <div>
+              <p class="font-bold text-neutral-800">${item.title}</p>
+              <p class="text-[11px] text-neutral-500">${item.price.toLocaleString()} so'm x ${item.qty}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="changeQty(${item.id}, -1)" class="w-6 h-6 rounded-lg bg-neutral-200 font-bold">-</button>
+              <span class="font-bold">${item.qty}</span>
+              <button onclick="changeQty(${item.id}, 1)" class="w-6 h-6 rounded-lg bg-[#064E3B] text-white font-bold">+</button>
+            </div>
+          </div>`;
+      }).join("");
+      totalEl.textContent = total.toLocaleString() + " so'm";
+    }
+
+    async function submitOrder(e) {
+      e.preventDefault();
+      if (cart.length === 0) return alert("Avval savatga kitob qo'shing!");
+
+      const btn = document.getElementById("submitOrderBtn");
+      btn.disabled = true;
+      btn.textContent = "Yuborilmoqda...";
+
+      const customer_name = document.getElementById("custName").value.trim();
+      const customer_phone = document.getElementById("custPhone").value.trim();
+      const address = document.getElementById("custAddress").value.trim();
+      const fileInput = document.getElementById("receiptFile");
+      const total_price = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+
+      let receipt_url = "";
+      if (fileInput.files && fileInput.files[0]) {
+        const file = fileInput.files[0];
+        const ext = file.name.split(".").pop();
+        const fileName = `receipt_${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabaseClient.storage.from("covers").upload(fileName, file);
+
+        if (!uploadError) {
+          const { data: urlData } = supabaseClient.storage.from("covers").getPublicUrl(fileName);
+          receipt_url = urlData.publicUrl;
+        }
+      }
+
+      const { error } = await supabaseClient.from("orders").insert([{
+        customer_name,
+        customer_phone,
+        address,
+        items: cart,
+        total_price,
+        payment_method: "Click / Karta orqali to'landi",
+        receipt_url,
+        status: "Yangi"
+      }]);
+
+      btn.disabled = false;
+      btn.textContent = "Buyurtmani tasdiqlash";
+
+      if (error) {
+        alert("Xatolik: " + error.message);
+        return;
+      }
+
+      alert("✅ Buyurtmangiz va to'lov cheki muvaffaqiyatli yuborildi!");
+      cart = [];
+      saveCart();
+      document.getElementById("checkoutForm").reset();
+      closeCartModal();
+    }
+
+    function toggleAdminAccess() {
+      if (!isAdmin) {
+        const pass = prompt("Admin parolini kiriting (Parol: admin123):");
+        if (pass !== "admin123") return alert("Parol noto'g'ri!");
+        isAdmin = true;
+      }
+      showSection("admin");
+      renderBooks();
+      loadOrders();
+    }
+
+    function showSection(sec) {
+      document.getElementById("shopSection").classList.toggle("hidden", sec !== "shop");
+      document.getElementById("adminSection").classList.toggle("hidden", sec !== "admin");
+    }
+
+    async function loadOrders() {
+      const container = document.getElementById("ordersList");
+      const { data, error } = await supabaseClient.from("orders").select("*").order("id", { ascending: false });
+      if (error || !data || data.length === 0) {
+        container.innerHTML = `<p class="text-neutral-400">Hozircha buyurtmalar yo'q.</p>`;
+        return;
+      }
+      container.innerHTML = data.map(o => {
+        const itemsList = (o.items || []).map(i => `${i.title} (${i.qty} dona)`).join(", ");
+        return `
+          <div class="p-3.5 rounded-xl border bg-neutral-50 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-[#064E3B]">#${o.id} — ${o.customer_name} (${o.customer_phone})</span>
+              <div class="flex items-center gap-2">
+                <select onchange="updateOrderStatus(${o.id}, this.value)" class="px-2 py-1 border rounded-lg text-[11px] font-semibold bg-white">
+                  <option value="Yangi" ${o.status === 'Yangi' ? 'selected' : ''}>🟡 Yangi</option>
+                  <option value="Yetkazilmoqda" ${o.status === 'Yetkazilmoqda' ? 'selected' : ''}>🚚 Yetkazilmoqda</option>
+                  <option value="Yakunlandi" ${o.status === 'Yakunlandi' ? 'selected' : ''}>✅ Yakunlandi</option>
+                  <option value="Bekor qilindi" ${o.status === 'Bekor qilindi' ? 'selected' : ''}>❌ Bekor qilindi</option>
+                </select>
+                <button onclick="deleteOrder(${o.id})" class="bg-red-600 hover:bg-red-700 text-white text-[10px] px-2 py-1 rounded-lg font-bold transition">O'chirish</button>
+              </div>
+            </div>
+            <p class="text-neutral-600">📍 <strong>Manzil:</strong> ${o.address}</p>
+            <p class="text-neutral-700">📚 <strong>Kitoblar:</strong> ${itemsList}</p>
+            ${o.receipt_url ? `<p>📄 <a href="${o.receipt_url}" target="_blank" class="text-blue-600 underline font-bold">To'lov chekini ko'rish</a></p>` : ''}
+            <div class="flex items-center justify-between text-[11px] text-neutral-500 pt-1 border-t">
+              <span>💳 To'lov: <strong>Click / Karta</strong></span>
+              <span class="font-bold text-neutral-900">💰 Jami: ${Number(o.total_price).toLocaleString()} so'm</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function updateOrderStatus(orderId, newStatus) {
+      await supabaseClient.from("orders").update({ status: newStatus }).eq("id", orderId);
+    }
+
+    async function deleteOrder(orderId) {
+      if (!confirm("Bu buyurtmani rostdan ham o'chirmoqchimisiz?")) return;
+      const { error } = await supabaseClient.from("orders").delete().eq("id", orderId);
+      if (error) {
+        alert("O'chirishda xatolik: " + error.message);
+        return;
+      }
+      loadOrders();
+    }
+  </script>
+</body>
+</html>
