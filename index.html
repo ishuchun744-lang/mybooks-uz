@@ -11,7 +11,7 @@
     body { font-family: 'Inter', sans-serif; background-color: #FAF8F5; color: #1C2220; }
     h1, h2, h3, .font-serif { font-family: 'Merriweather', serif; }
     
-    /* SPLASH SCREEN (KIRISH ANIMATSIYASI) */
+    /* KIRISH ANIMATSIYASI (SPLASH SCREEN) */
     #splashScreen {
       position: fixed;
       inset: 0;
@@ -39,7 +39,7 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <!-- KIRISH ANIMATSIYASI (SPLASH SCREEN) -->
+  <!-- KIRISH ANIMATSIYASI -->
   <div id="splashScreen">
     <div class="w-20 h-20 rounded-2xl bg-[#D4AF37] text-[#064E3B] flex items-center justify-center font-bold text-4xl shadow-2xl animate-logo mb-4">
       📚
@@ -231,7 +231,7 @@
   </div>
 
   <script>
-    // 1 sekundlik Splash screen animatsiyasini o'chirish
+    // Splash screen animatsiyasi
     window.addEventListener("load", () => {
       setTimeout(() => {
         const splash = document.getElementById("splashScreen");
@@ -485,8 +485,9 @@
 
     function toggleAdminAccess() {
       if (!isAdmin) {
-        const pass = prompt("Admin parolini kiriting (Parol: admin123):");
-        if (pass !== "admin123") return alert("Parol noto'g'ri!");
+        // ADMIN PAROLI:
+        const pass = prompt("Admin parolini kiriting:");
+        if (pass !== "b1e9k9z4od") return alert("Parol noto'g'ri!");
         isAdmin = true;
       }
       showSection("admin");
